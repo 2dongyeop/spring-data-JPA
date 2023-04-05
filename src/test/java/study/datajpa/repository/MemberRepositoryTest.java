@@ -1,5 +1,7 @@
 package study.datajpa.repository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +29,7 @@ class MemberRepositoryTest {
 
     @Autowired MemberRepository memberRepository;
     @Autowired TeamRepository teamRepository;
+    @PersistenceContext EntityManager em;
 
     @Test
     public void testMember() throws Exception {
@@ -195,5 +198,45 @@ class MemberRepositoryTest {
         assertThat(page.getTotalPages()).isEqualTo(2); //총 페이지 수
         assertThat(page.isFirst()).isTrue();
         assertThat(page.hasNext()).isTrue();
+    }
+
+
+    @Test
+    public void bulkUpdate() throws Exception {
+        //given -- 조건
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 40));
+
+        //when -- 동작
+        int resultCount = memberRepository.bulkAgePlus(20);
+        /** 벌크성 수정 쿼리의 경우, 영속성 컨텍스트를 거치지 않고 바로 DB에 저장
+         * 따라서 영속성 컨텍스트는 이를 모를 뿐더러, 아직 40살로 알고있음. */
+
+        List<Member> list = memberRepository.findByUsername("member5");
+        Member member5 = list.get(0);
+
+        System.out.println(member5); //나이가 40
+
+        /** 영속성 컨텍스트의 내용을 날리기
+         * 이 경우, 1차 캐시와 영속성 컨텍스트가 비어있으므로
+         * DB에서 새롭게 조회해옴! -> 따라서 나이가 41살로 수정됨*/
+        em.flush();
+        em.clear();
+
+        List<Member> newList = memberRepository.findByUsername("member5");
+        Member newMember5 = newList.get(0);
+
+        System.out.println(newMember5); //나이가 41
+
+        /** 단, 위 과정(flush & clear)이 귀찮으면 @Modifying에 옵션을 추가하기
+         * @Modifying(clearAutomatically = true)
+         * 마지막으로 추가해놓음. 다시 해보고 싶으면 옵션 지우고 돌려보기 */
+
+
+        //then -- 검증
+        assertThat(resultCount).isEqualTo(3);
     }
 }

@@ -27,9 +27,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @Rollback(value = false)
 class MemberRepositoryTest {
 
-    @Autowired MemberRepository memberRepository;
-    @Autowired TeamRepository teamRepository;
-    @PersistenceContext EntityManager em;
+    @Autowired
+    MemberRepository memberRepository;
+    @Autowired
+    TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     public void testMember() throws Exception {
@@ -238,5 +241,31 @@ class MemberRepositoryTest {
 
         //then -- 검증
         assertThat(resultCount).isEqualTo(3);
+    }
+
+    @Test
+    public void findMemberLazy() throws Exception {
+        //given -- 조건
+        //member1 -> teamA
+        //member2 -> teamB
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+        memberRepository.save(new Member("member1", 10, teamA));
+        memberRepository.save(new Member("member2", 20, teamB));
+        em.flush();
+        em.clear();
+
+        //when
+//        List<Member> members = memberRepository.findAll(); //기본 제공 메서드
+//        List<Member> members = memberRepository.findMemberFetchJoin(); //fetch join
+//        List<Member> members = memberRepository.findAll(); //공통 메서드를 오버라이드
+        List<Member> members = memberRepository.findMemberEntityGraph(); //JPQL + 엔티티 그래프
+
+        //then
+        for (Member member : members) {
+            member.getTeam().getName();
+        }
     }
 }
